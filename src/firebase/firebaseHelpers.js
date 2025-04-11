@@ -5,17 +5,12 @@ import { db } from "./firebaseConfig";
 
 const tasksRef = collection(db, "tasks");
 
-export const addTask = async (taskText) => {
-    try {
-      const docRef = await addDoc(collection(db, "tasks"), {
-        text: taskText,
-        completed: false,
-        createdAt: new Date(),
-      });
-      console.log("Document written with ID: ", docRef.id);
-    } catch (error) {
-      console.error("Error adding task: ", error);
-    }
+export const addTask = async (text, user) => {
+    await addDoc(collection(db, "tasks"), {
+      text,
+      uid: user.uid,
+      createdAt: new Date(),
+    });
   };
 
 export const getTasks = async () => {
