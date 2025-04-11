@@ -1,10 +1,7 @@
 "use client";
 import React from "react";
 import TodoApp from "../components/TodoApp.jsx";
-import { auth } from '@/firebase/firebaseConfig';
-import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import {useAuth} from '@/hooks/useAuth.js'
 
 function App() {
