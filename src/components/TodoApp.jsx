@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { CheckCircle, LogOut, Plus, Rocket, Calendar, Flag, Edit, Trash2 } from "lucide-react"
 import "../app/globals.css"
 import TaskDetailsDialog from "./TaskDetailsDialog"
+import SubtaskManager from "./Subtask"
 
 export default function TodoApp({ user }) {
   const [input, setInput] = useState("")
@@ -123,34 +124,7 @@ export default function TodoApp({ user }) {
 
       {/* Header - Logo on left, Logout on right */}
       <div className="max-w-6xl mx-auto z-10 relative">
-        <div className="flex justify-between items-center mb-12 pt-4">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex items-center gap-2"
-          >
-            <h1 className="text-3xl font-bold text-blue-900">
-              Daily<span className="text-blue-600">Drive</span>
-            </h1>
-            <motion.div
-              animate={{ rotate: [0, 10, 0], y: [0, -5, 0] }}
-              transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            >
-              <Rocket className="text-blue-500 h-6 w-6" />
-            </motion.div>
-          </motion.div>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleLogout}
-            className="flex items-center gap-2 bg-white text-blue-600 px-5 py-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300 border border-blue-100"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </motion.button>
-        </div>
 
         {/* Main Content - Centered */}
         <div className="flex justify-center">
@@ -181,6 +155,9 @@ export default function TodoApp({ user }) {
               </motion.button>
             </div>
             <TaskDetailsDialog
+            type = 'main'
+            input ={input}
+            setInput={setInput}
               open={showDetailsDialog}
               onOpenChange={setShowDetailsDialog}
               setPriority={setPriority}
@@ -220,6 +197,7 @@ export default function TodoApp({ user }) {
                           )}
                         </motion.div>
                       </div>
+                      
 
                       {editingTaskId === task.id ? (
                         <input
@@ -312,10 +290,13 @@ export default function TodoApp({ user }) {
                       ) : (
                         <div className="flex items-center gap-3 ml-auto">
                           {/* Priority indicator moved to the right */}
+                          <div>
+                          <SubtaskManager task ={task}/>
+                          </div>
                          
                           <motion.button
-                            whileHover={{ scale: 0}}
-                            
+                            whileHover={{ scale: 0 }}
+
                             className="text-blue-500 block group-hover:hidden"
                           >
                             <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} mr-3`}></div>

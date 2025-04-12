@@ -1,34 +1,49 @@
 // components/TaskDetailsDialog.tsx
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
-// type Props = {
-//   open: boolean
-//   onOpenChange: (open: boolean) => void
-//   setPriority: (priority: string) => void
-//   setDueDate: (dueDate: string) => void
-//   onConfirm: () => void
-// }
 
 export default function TaskDetailsDialog({
+  type,
+  input,
+  setInput,
   open,
   onOpenChange,
   setPriority,
   setDueDate,
-  onConfirm
+  onConfirm,
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Set Task Details</DialogTitle>
+          <DialogTitle>{type == 'main' ? 'Set Task Details' : 'Set subtask Details'}</DialogTitle>
         </DialogHeader>
+
+        {/* Task Title Input */}
+        <Input
+          placeholder={type == 'main' ? 'Task title' : 'Subtask title'}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+        />
 
         {/* Priority Selection */}
         <Select onValueChange={(value) => setPriority(value)}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full mt-2">
             <SelectValue placeholder="Select Priority" />
           </SelectTrigger>
           <SelectContent>
@@ -37,13 +52,15 @@ export default function TaskDetailsDialog({
             <SelectItem value="low">Low</SelectItem>
           </SelectContent>
         </Select>
-
-        {/* Due Date */}
-        <Input
-          type="datetime-local"
-          className="mt-2"
-          onChange={(e) => setDueDate(e.target.value)}
-        />
+{
+  type == 'main' ?  <Input
+  type="datetime-local"
+  className="mt-2"
+  onChange={(e) => setDueDate(e.target.value)}
+/> : ''
+}
+        {/* Due Date Input */}
+       
 
         <DialogFooter>
           <Button onClick={onConfirm}>Done</Button>

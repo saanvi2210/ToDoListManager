@@ -1,7 +1,9 @@
 // src/firebase/firebaseHelpers.js
 //includes funstions for all CRUD operations
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "./firebaseConfig";
+import { v4 as uuidv4 } from 'uuid';
+
 
 const tasksRef = collection(db, "tasks");
 
@@ -15,6 +17,26 @@ export const addTask = async (text, priority, dueDate, user) => {
     dueDate: dueDate || null
   })
   };
+
+export const addSubTask = async(task, subtaskText,priority)=>{
+  try {
+    const subtask = {
+      id: uuidv4(),
+      text: subtaskText,
+      completed: false,
+      priority: priority
+    };
+
+    const taskRef = doc(db, 'tasks', task.id);
+    await updateDoc(taskRef, {
+      subtasks: arrayUnion(subtask),
+    });
+
+  } catch (error) {
+    console.error('Error adding subtask:', error);
+  }
+
+}
 
 export const getTasks = async () => {
   const snapshot = await getDocs(tasksRef);
