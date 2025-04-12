@@ -2,37 +2,60 @@
 import { useEffect, useState } from "react"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { db, auth } from "../firebase/firebaseConfig"
-import { addTask, deleteTask } from "../firebase/firebaseHelpers"
+import { addTask, deleteTask, markAsComplete, updateTask } from "../firebase/firebaseHelpers"
 import { signOut } from "firebase/auth"
-import { motion } from "framer-motion"
-import { CheckCircle, LogOut, Plus, Rocket } from "lucide-react"
-import '../app/globals.css'
+import { motion, AnimatePresence } from "framer-motion"
+import { CheckCircle, LogOut, Plus, Rocket, Calendar, Flag, Edit, Trash2 } from "lucide-react"
+import "../app/globals.css"
+import TaskDetailsDialog from "./TaskDetailsDialog"
 
 export default function TodoApp({ user }) {
   const [input, setInput] = useState("")
   const [tasks, setTasks] = useState([])
+  const [editingTaskId, setEditingTaskId] = useState(null)
+  const [editingText, setEditingText] = useState("")
+  const [priority, setPriority] = useState("")
+  const [dueDate, setDueDate] = useState("")
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [hoveredTaskId, setHoveredTaskId] = useState(null)
 
   const fetchTasks = async () => {
-    const q = query(collection(db, "tasks"), where("uid", "==", user.uid))
+    const q = query(collection(db, "tasks"), where("uid", "==", user.uid), where("completed", "==", false))
     const querySnapshot = await getDocs(q)
-    const tasks = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    const tasks = querySnapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        text: typeof data.text === "object" ? data.text.text : data.text, // flatten if needed
+        ...data,
+      }
+    })
+    // sort tasks by due date
+    tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+
     setTasks(tasks)
   }
 
-  useEffect(() => {
-    fetchTasks()
-  }, [])
+  const handleAdd = () => {
+    setShowDetailsDialog(true) // open dialog instead of adding directly
+  }
 
-  const handleAdd = async () => {
-    if (input.trim() !== "") {
-      await addTask(input, user)
-      setInput("")
-      fetchTasks()
-    }
+  const handleConfirmDetails = async () => {
+    addTask(input, priority, dueDate, user)
+    fetchTasks()
+    setInput("")
+    setPriority("")
+    setDueDate("")
+    setShowDetailsDialog(false)
   }
 
   const handleDelete = async (id) => {
     await deleteTask(id)
+    fetchTasks()
+  }
+
+  const handleUpdate = async (id, updatedTask) => {
+    await updateTask(id, updatedTask)
     fetchTasks()
   }
 
@@ -48,6 +71,45 @@ export default function TodoApp({ user }) {
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       handleAdd()
+    }
+  }
+
+  useEffect(() => {
+    fetchTasks()
+  }, [])
+
+  // Function to format date in a more readable format
+  const formatDate = (dateString) => {
+    if (!dateString) return "No date set"
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+
+  // Get priority color
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "high":
+        return "bg-red-500"
+      case "medium":
+        return "bg-yellow-500"
+      case "low":
+        return "bg-green-500"
+      default:
+        return "bg-blue-300"
+    }
+  }
+
+  // Get priority text color
+  const getPriorityTextColor = (priority) => {
+    switch (priority) {
+      case "high":
+        return "text-red-500"
+      case "medium":
+        return "text-yellow-500"
+      case "low":
+        return "text-green-500"
+      default:
+        return "text-blue-300"
     }
   }
 
@@ -98,7 +160,7 @@ export default function TodoApp({ user }) {
             transition={{ duration: 0.8 }}
             className="bg-white rounded-2xl shadow-xl p-8 border border-blue-100 mb-8 w-full max-w-3xl"
           >
-            <h2 className="text-3xl font-serif mb-8 text-blue-400 text-center">TASK MANAGEMENT</h2>
+            <h2 className="text-4xl font-serif mb-8 text-blue-400 text-center">TASK MANAGEMENT</h2>
 
             <div className="flex gap-3 mb-10">
               <input
@@ -118,47 +180,170 @@ export default function TodoApp({ user }) {
                 Add Task
               </motion.button>
             </div>
+            <TaskDetailsDialog
+              open={showDetailsDialog}
+              onOpenChange={setShowDetailsDialog}
+              setPriority={setPriority}
+              setDueDate={setDueDate}
+              onConfirm={handleConfirmDetails}
+            />
 
             {tasks.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-10 text-blue-400">
                 <p className="text-lg">No tasks yet. Add your first task to get started!</p>
               </motion.div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-4">
                 {tasks.map((task, index) => (
                   <motion.li
                     key={task.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className="flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm group"
+                    className="relative flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow duration-300 group"
+                    onMouseEnter={() => setHoveredTaskId(task.id)}
+                    onMouseLeave={() => setHoveredTaskId(null)}
                   >
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="text-blue-500 h-5 w-5" />
-                      <span className="text-blue-800">{task.text}</span>
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => handleDelete(task.id)}
-                      className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                    <div className="flex items-center gap-3 w-full">
+                      <div
+                        onClick={async () => {
+                          await markAsComplete(task.id)
+                          setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, completed: true } : t)))
+                        }}
+                        className="cursor-pointer"
                       >
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      </svg>
-                    </motion.button>
+                        <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
+                          {!task.completed ? (
+                            <CheckCircle className="text-blue-500 h-5 w-5" />
+                          ) : (
+                            <CheckCircle className="text-gray-300 h-5 w-5" />
+                          )}
+                        </motion.div>
+                      </div>
+
+                      {editingTaskId === task.id ? (
+                        <input
+                          type="text"
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          className="flex-1 px-3 py-1 rounded-md border border-blue-200 text-blue-800 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="text-blue-800 flex-1">{task.text}</span>
+                      )}
+
+                      {/* Task Details Popup - Improved version */}
+                      <AnimatePresence>
+                        {hoveredTaskId === task.id && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute left-full ml-4 w-64 p-4 rounded-xl shadow-lg bg-white border border-blue-100 z-20"
+                            style={{ top: "0%", transform: "translateY(-50%)" }}
+                          >
+                            <div className="relative">
+                              {/* Connector */}
+                              <div className="absolute top-1/2 -left-8 w-8 h-px bg-blue-100"></div>
+
+                              {/* Header with priority indicator */}
+                              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-blue-50">
+                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                                <h4 className="font-medium text-blue-900">Task Details</h4>
+                              </div>
+
+                              {/* Task name */}
+                              <div className="mb-3">
+                                <p className="text-sm font-medium text-gray-800 break-words">{task.text}</p>
+                              </div>
+
+                              {/* Due date */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <Calendar className="h-4 w-4 text-blue-400" />
+                                <p className="text-sm text-gray-600">
+                                  {task.dueDate ? formatDate(task.dueDate) : "No deadline set"}
+                                </p>
+                              </div>
+
+                              {/* Priority */}
+                              <div className="flex items-center gap-2">
+                                <Flag className="h-4 w-4 text-blue-400" />
+                                <p className="text-sm text-gray-600">
+                                  Priority:{" "}
+                                  <span className={`font-medium ${getPriorityTextColor(task.priority)}`}>
+                                    {task.priority || "None"}
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {editingTaskId === task.id ? (
+                        <div className="flex items-center gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={async () => {
+                              await handleUpdate(task.id, { text: editingText })
+                              setEditingTaskId(null)
+                              setEditingText("")
+                            }}
+                            className="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-1 rounded-md bg-green-50"
+                          >
+                            Save
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setEditingTaskId(null)
+                              setEditingText("")
+                            }}
+                            className="text-gray-500 hover:text-gray-700 text-sm px-3 py-1 rounded-md bg-gray-50"
+                          >
+                            Cancel
+                          </motion.button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 ml-auto">
+                          {/* Priority indicator moved to the right */}
+                         
+                          <motion.button
+                            whileHover={{ scale: 0}}
+                            
+                            className="text-blue-500 block group-hover:hidden"
+                          >
+                            <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} mr-3`}></div>
+                          </motion.button>
+                          {/* Action buttons that appear on hover */}
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                              setEditingTaskId(task.id)
+                              setEditingText(task.text)
+                            }}
+                            className="text-blue-500 hidden group-hover:block"
+                          >
+                            <Edit className="h-5 w-5" />
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleDelete(task.id)}
+                            className="text-red-500 hidden group-hover:block"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </motion.button>
+                        </div>
+                      )}
+                    </div>
                   </motion.li>
                 ))}
               </ul>
