@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import TaskDetailsDialog from './TaskDetailsDialog';
 import { addSubTask } from '../firebase/firebaseHelpers';
 
-const SubtaskManager = ({ task }) => {
+const SubtaskManager = ({ user,task }) => {
 
     const [input, setInput] = useState("")
     const [priority, setPriority] = useState("")
@@ -16,7 +16,7 @@ const SubtaskManager = ({ task }) => {
     
       const handleConfirmDetails = async () => {
 
-        await addSubTask(task,input, priority)
+        await addSubTask(user,task.id,input, priority)
         setInput("")
         setPriority("")
         setShowDetailsDialog(false)

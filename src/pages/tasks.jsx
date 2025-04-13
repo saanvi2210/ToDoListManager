@@ -7,6 +7,8 @@ import { motion } from "framer-motion"
 import { LogOut, Rocket } from "lucide-react"
 import { signOut } from "firebase/auth"
 import { auth } from "../firebase/firebaseConfig"
+import SelectedTask from "../components/SelectedTask"
+import { TaskProvider } from "../context/taskContext"
 
 function Tasks() {
   const { user, loading } = useAuth()
@@ -42,7 +44,8 @@ function Tasks() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 p-6 md:p-8 relative overflow-hidden">
+    <TaskProvider>
+       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 p-6 md:p-8 relative overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <div className="absolute top-20 left-10 w-64 h-64 bg-sky-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
@@ -81,22 +84,27 @@ function Tasks() {
         </div>
 
         {/* Main Content - Two Column Layout */}
-        <div className="">
+        <div className="flex w-full bg-gradient-to-br from-blue-50 via-white to-sky-50">
           {/* TodoApp Column */}
+          <div className="w-[50%]">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <TodoApp user={user} />
           </motion.div>
-
-          {/* Calendar Column */}
-          <motion.div
+          </div>
+          <div className="w-[50%]">
+          <SelectedTask/>
+          </div>
+          
+        
+        </div>
+        {/* Calendar Column */}
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <CalendarWithTasks user={user} />
           </motion.div>
-        </div>
-
         {/* Footer */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -108,6 +116,8 @@ function Tasks() {
         </motion.div>
       </div>
     </div>
+    </TaskProvider>
+   
   )
 }
 

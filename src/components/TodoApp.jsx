@@ -9,6 +9,7 @@ import { CheckCircle, LogOut, Plus, Rocket, Calendar, Flag, Edit, Trash2 } from 
 import "../app/globals.css"
 import TaskDetailsDialog from "./TaskDetailsDialog"
 import SubtaskManager from "./Subtask"
+import { useTask } from "../context/taskContext"
 
 export default function TodoApp({ user }) {
   const [input, setInput] = useState("")
@@ -19,54 +20,32 @@ export default function TodoApp({ user }) {
   const [dueDate, setDueDate] = useState("")
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [hoveredTaskId, setHoveredTaskId] = useState(null)
+  const { selectedTask, setSelectedTask } = useTask();
 
   const fetchTasks = async () => {
-    const q = query(collection(db, "tasks"), where("uid", "==", user.uid), where("completed", "==", false))
-    const querySnapshot = await getDocs(q)
+    if (!user?.uid) return;
+
+    const userTasksRef = collection(db, "users", user.uid, "tasks");
+
+    const q = query(userTasksRef, where("completed", "==", false));
+    const querySnapshot = await getDocs(q);
+
     const tasks = querySnapshot.docs.map((doc) => {
-      const data = doc.data()
+      const data = doc.data();
       return {
         id: doc.id,
         text: typeof data.text === "object" ? data.text.text : data.text, // flatten if needed
         ...data,
-      }
-    })
-    // sort tasks by due date
-    tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      };
+    });
 
-    setTasks(tasks)
-  }
+    // Sort tasks by due date
+    tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
+    setTasks(tasks);
+  };
   const handleAdd = () => {
     setShowDetailsDialog(true) // open dialog instead of adding directly
-  }
-
-  const handleConfirmDetails = async () => {
-    addTask(input, priority, dueDate, user)
-    fetchTasks()
-    setInput("")
-    setPriority("")
-    setDueDate("")
-    setShowDetailsDialog(false)
-  }
-
-  const handleDelete = async (id) => {
-    await deleteTask(id)
-    fetchTasks()
-  }
-
-  const handleUpdate = async (id, updatedTask) => {
-    await updateTask(id, updatedTask)
-    fetchTasks()
-  }
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth)
-      window.location.reload()
-    } catch (error) {
-      console.error("Error logging out:", error)
-    }
   }
 
   const handleKeyPress = (e) => {
@@ -114,8 +93,17 @@ export default function TodoApp({ user }) {
     }
   }
 
+  const handleConfirmDetails = async (newDetails) => {
+      console.log(newDetails)
+      await addTask(newDetails, user)
+      console.log("new details added")
+      setInput("")
+      setShowDetailsDialog(false)
+      fetchTasks()
+    }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 p-6 md:p-8 relative overflow-hidden">
+    <div className="min-h-screen  p-6 md:p-8 relative overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <div className="absolute top-20 left-10 w-64 h-64 bg-sky-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
@@ -156,13 +144,10 @@ export default function TodoApp({ user }) {
             </div>
             <TaskDetailsDialog
             type = 'main'
-            input ={input}
-            setInput={setInput}
-              open={showDetailsDialog}
-              onOpenChange={setShowDetailsDialog}
-              setPriority={setPriority}
-              setDueDate={setDueDate}
-              onConfirm={handleConfirmDetails}
+            input = {input}
+            open={showDetailsDialog}
+            onOpenChange={setShowDetailsDialog}
+            onConfirm={handleConfirmDetails}
             />
 
             {tasks.length === 0 ? (
@@ -180,6 +165,9 @@ export default function TodoApp({ user }) {
                     className="relative flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow duration-300 group"
                     onMouseEnter={() => setHoveredTaskId(task.id)}
                     onMouseLeave={() => setHoveredTaskId(null)}
+                    onClick={() => {
+                      setSelectedTask(task)
+                    }}
                   >
                     <div className="flex items-center gap-3 w-full">
                       <div
@@ -197,7 +185,7 @@ export default function TodoApp({ user }) {
                           )}
                         </motion.div>
                       </div>
-                      
+
 
                       {editingTaskId === task.id ? (
                         <input
@@ -211,119 +199,26 @@ export default function TodoApp({ user }) {
                         <span className="text-blue-800 flex-1">{task.text}</span>
                       )}
 
-                      {/* Task Details Popup - Improved version */}
-                      <AnimatePresence>
-                        {hoveredTaskId === task.id && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            className="absolute left-full ml-4 w-64 p-4 rounded-xl shadow-lg bg-white border border-blue-100 z-20"
-                            style={{ top: "0%", transform: "translateY(-50%)" }}
-                          >
-                            <div className="relative">
-                              {/* Connector */}
-                              <div className="absolute top-1/2 -left-8 w-8 h-px bg-blue-100"></div>
 
-                              {/* Header with priority indicator */}
-                              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-blue-50">
-                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                                <h4 className="font-medium text-blue-900">Task Details</h4>
-                              </div>
 
-                              {/* Task name */}
-                              <div className="mb-3">
-                                <p className="text-sm font-medium text-gray-800 break-words">{task.text}</p>
-                              </div>
 
-                              {/* Due date */}
-                              <div className="flex items-center gap-2 mb-2">
-                                <Calendar className="h-4 w-4 text-blue-400" />
-                                <p className="text-sm text-gray-600">
-                                  {task.dueDate ? formatDate(task.dueDate) : "No deadline set"}
-                                </p>
-                              </div>
+                      <div className="flex items-center gap-3 ml-auto">
+                        {/* Priority indicator moved to the right */}
 
-                              {/* Priority */}
-                              <div className="flex items-center gap-2">
-                                <Flag className="h-4 w-4 text-blue-400" />
-                                <p className="text-sm text-gray-600">
-                                  Priority:{" "}
-                                  <span className={`font-medium ${getPriorityTextColor(task.priority)}`}>
-                                    {task.priority || "None"}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
 
-                      {editingTaskId === task.id ? (
-                        <div className="flex items-center gap-2">
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={async () => {
-                              await handleUpdate(task.id, { text: editingText })
-                              setEditingTaskId(null)
-                              setEditingText("")
-                            }}
-                            className="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-1 rounded-md bg-green-50"
-                          >
-                            Save
-                          </motion.button>
+                        <motion.button
 
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setEditingTaskId(null)
-                              setEditingText("")
-                            }}
-                            className="text-gray-500 hover:text-gray-700 text-sm px-3 py-1 rounded-md bg-gray-50"
-                          >
-                            Cancel
-                          </motion.button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3 ml-auto">
-                          {/* Priority indicator moved to the right */}
-                          <div>
-                          <SubtaskManager task ={task}/>
-                          </div>
-                         
-                          <motion.button
-                            whileHover={{ scale: 0 }}
 
-                            className="text-blue-500 block group-hover:hidden"
-                          >
-                            <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} mr-3`}></div>
-                          </motion.button>
-                          {/* Action buttons that appear on hover */}
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => {
-                              setEditingTaskId(task.id)
-                              setEditingText(task.text)
-                            }}
-                            className="text-blue-500 hidden group-hover:block"
-                          >
-                            <Edit className="h-5 w-5" />
-                          </motion.button>
+                          className="text-blue-500 block "
+                        >
+                          <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} mr-3`}></div>
+                        </motion.button>
 
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDelete(task.id)}
-                            className="text-red-500 hidden group-hover:block"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </motion.button>
-                        </div>
-                      )}
+
+
+
+                      </div>
+
                     </div>
                   </motion.li>
                 ))}
